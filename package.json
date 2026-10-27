@@ -1,0 +1,41 @@
+{
+  "name": "reservafacil-spa",
+  "version": "1.0.0",
+  "description": "Sistema de reservas de atención y gestión de citas - ReservaFácil SpA",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "echo 'Linting not configured'",
+    "audit": "npm audit --audit-level=high"
+  },
+  "keywords": [
+    "reservas",
+    "citas",
+    "devsecops"
+  ],
+  "author": "ReservaFácil",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "connect-pg-simple": "^9.0.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-session": "^1.17.3",
+    "helmet": "^7.1.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
