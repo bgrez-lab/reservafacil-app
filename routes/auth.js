@@ -102,7 +102,7 @@ router.post('/login', async (req, res) => {
     res.redirect('/');
   } catch (error) {
     console.error('Error en login:', error);
-    res.render('login', { error: 'Error al iniciar sesión' });
+    res.render('login', { error: 'Error al iniciar sesión: ' + error.message });
   }
 });
 

@@ -49,10 +49,12 @@ app.use((req, res, next) => {
 const authRoutes = require('../routes/auth');
 const reservasRoutes = require('../routes/reservas');
 const adminRoutes = require('../routes/admin');
+const healthRoutes = require('../routes/health');
 
 app.use('/', authRoutes);
 app.use('/reservas', reservasRoutes);
 app.use('/admin', adminRoutes);
+app.use('/', healthRoutes);
 
 // Ruta principal
 app.get('/', (req, res) => {
