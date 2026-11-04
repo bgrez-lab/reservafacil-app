@@ -1,0 +1,83 @@
+INFORME FINAL - LABORATORIO "SEGURIDAD DESDE EL DISEÑO"
+Aplicación: ReservaFácil SpA
+Fecha: 2026-11-04
+Modalidad: individual
+
+1. TÉRMINOS PAREADOS
+- Autenticación: verifica la identidad de quien intenta ingresar.
+- Autorización: determina qué recursos y operaciones puede utilizar una identidad.
+- Validación: comprueba que los datos recibidos cumplen las reglas antes de procesarlos; debe realizarse en el servidor.
+- Consultas parametrizadas: separan los valores de entrada de la estructura de la consulta, ayudando a prevenir inyección SQL.
+- Mínimo privilegio: concede únicamente los permisos necesarios para realizar una tarea.
+
+2. ANÁLISIS DE AMENAZAS
+- Consultar una reserva ajena: verificar autorización y propiedad del recurso en el servidor.
+- Acceder a una ruta administrativa: comprobar permisos en cada operación protegida; ocultar un botón no basta.
+- Manipular una búsqueda SQL: usar consultas parametrizadas y validar las reglas de entrada.
+- Almacenar contraseñas en texto plano: usar una función de hash apropiada para contraseñas con parámetros seguros (bcrypt).
+- Permitir reservas duplicadas: aplicar transacciones y restricciones de integridad en la base de datos.
+
+3. DECISIONES DE DISEÑO
+- Los controles de acceso se comprueban en el servidor en cada solicitud protegida.
+- Las contraseñas se almacenan con bcrypt, nunca en texto plano.
+- Los mensajes de error al usuario no exponen tokens, contraseñas, consultas ni trazas internas.
+- Las entradas se validan en el servidor y las consultas se parametrizan.
+- Se aplica el principio de mínimo privilegio a usuarios, servicios y componentes.
+- La interfaz ayuda a la experiencia de usuario, pero la seguridad se repite en el servidor.
+
+4. PLAN DE PRUEBAS
+Prueba 1 - Reserva ajena
+  Procedimiento: crear cuentas A y B, guardar una reserva de B y solicitarla desde A.
+  Resultado esperado: acceso denegado sin revelar datos de B.
+  Evidencia: tests/routes-reservas.test.js ("impide cancelar reservas de otros usuarios"), HTTP 403.
+
+Prueba 2 - Control de roles
+  Procedimiento: iniciar sesión como usuario común y solicitar directamente una ruta administrativa.
+  Resultado esperado: el servidor rechaza la operación.
+  Evidencia: tests/auth-middleware.test.js y tests/routes-admin.test.js, HTTP 403.
+
+Prueba 3 - Inyección SQL
+  Procedimiento: enviar entradas de prueba en un entorno controlado.
+  Resultado esperado: se tratan como datos, no cambian la lógica SQL ni revelan registros no autorizados.
+  Evidencia: consultas parametrizadas en routes/*.js y tests/validation.test.js.
+
+Prueba 4 - Contraseñas
+  Procedimiento: comparar diseño sin hash y con bcrypt.
+  Resultado esperado: no es posible recuperar la contraseña original desde el hash.
+  Evidencia: tests/password.test.js, hash bcrypt costo 12.
+
+Prueba 5 - Doble reserva
+  Procedimiento: dos solicitudes simultáneas para el mismo horario.
+  Resultado esperado: solo una se acepta; la otra recibe 409.
+  Evidencia: tests/routes-reservas.test.js ("rechaza un horario ya ocupado", "traduce la violación de unicidad"), índice idx_reservas_slot_unico.
+
+Prueba 6 - CSRF
+  Procedimiento: enviar POST sin token o con token de otra sesión.
+  Resultado esperado: HTTP 403.
+  Evidencia: tests/security.test.js y tests/csrf.test.js.
+
+5. EVIDENCIAS DE IMPLEMENTACIÓN
+- Node.js: 20 (CI), local 24.16.0.
+- PostgreSQL: 16 en CI.
+- Pruebas: 11 suites, 73 pruebas aprobadas.
+- Cobertura global: 95.05% statements, 90.74% branches, 95.74% functions, 94.92% lines.
+- Lint: 0 errores.
+- Auditoría producción: 0 vulnerabilidades.
+- Auditoría total: 28 avisos (4 low, 24 moderate) solo en dependencias de desarrollo.
+- Pipeline: .github/workflows/ci.yml con Gitleaks, Semgrep, pruebas de integración y despliegue opcional.
+
+6. REFLEXIÓN
+La seguridad temprana permitió definir requisitos y arquitectura antes de que las
+decisiones inseguras se propagaran. Corregir tarde habría exigido modificar
+rutas, servicios, consultas y pruebas; diseñar con seguridad desde el inicio
+permitió incorporar controles coherentes y verificables. Los controles se
+implementan en el servidor, donde pueden hacerse cumplir de manera fiable, no
+solo en la interfaz.
+
+7. CONCLUSIÓN
+ReservaFácil SpA implementa autenticación segura, autorización por rol,
+validación de entrada, protección CSRF, CSP, sesiones persistentes en
+PostgreSQL, prevención de inyección SQL mediante consultas parametrizadas y
+prevención de dobles reservas mediante transacciones e índice único parcial.
+El proyecto incluye pruebas automatizadas, análisis estático, escaneo de
+secretos, auditoría de dependencias y pipeline CI/CD reproducible.
