@@ -4,9 +4,13 @@ dns.setDefaultResultOrder('ipv4first');
 const { Pool } = require('pg');
 require('dotenv').config();
 
+const shouldUseSsl = process.env.NODE_ENV === 'production'
+  || process.env.DATABASE_SSL === 'true';
+const rejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: shouldUseSsl ? { rejectUnauthorized } : false
 });
 
 pool.on('connect', () => {

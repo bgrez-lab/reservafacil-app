@@ -6,55 +6,193 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  quality:
+    name: Lint, pruebas y auditoría de dependencias
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias reproducibles
+        run: npm ci
+
+      - name: Análisis estático (ESLint)
+        run: npm run lint
+
+      - name: Pruebas automatizadas con cobertura
+        run: npm run test:ci
+        env:
+          NODE_ENV: test
+          SESSION_SECRET: test-secret-no-usar-en-produccion
+
+      - name: Publicar reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: Auditar dependencias de producción (falla con high/critical)
+        run: npm run audit:prod
+
+      - name: Auditar todas las dependencias (falla con high/critical)
+        run: npm run audit
+
+  secrets:
+    name: Escaneo de secretos (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout con historial completo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ejecutar Gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz \
+            | tar -xz gitleaks
+          ./gitleaks detect --source . --config .gitleaks.toml --redact --verbose
+
+  sast:
+    name: Análisis estático de seguridad (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar Semgrep
+        run: pip install semgrep==1.85.0
+
+      - name: Escanear el código
+        run: |
+          semgrep scan \
+            --config p/javascript \
+            --config p/owasp-top-ten \
+            --severity ERROR \
+            --error \
+            --exclude node_modules \
+            --exclude coverage \
+            --exclude tests
+
+  integration:
+    name: Pruebas de integración con PostgreSQL
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     services:
       postgres:
-        image: postgres:14
+        image: postgres:16
         env:
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
+          POSTGRES_DB: reservafacil_test
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
-          --health-max-wait 10s
+          --health-retries 5
         ports:
           - 5432:5432
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run tests
-      run: npm test
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-        SESSION_SECRET: test-secret
-        NODE_ENV: test
-        
-    - name: Security audit
-      run: npm audit --audit-level=high
-      
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias reproducibles
+        run: npm ci
+
+      - name: Inicializar esquema y datos semilla
+        run: npm run db:init
+        env:
+          NODE_ENV: development
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reservafacil_test
+          SESSION_SECRET: integration-test-secret
+
+      - name: Levantar la aplicación y verificar /health
+        run: |
+          node src/app.js > server.log 2>&1 &
+          echo $! > server.pid
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/health > health.json; then
+              break
+            fi
+            sleep 1
+          done
+
+          cat health.json
+          grep -q '"status":"ok"' health.json
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/)" = "200"
+
+          kill "$(cat server.pid)"
+        env:
+          NODE_ENV: development
+          PORT: 3000
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reservafacil_test
+          SESSION_SECRET: integration-test-secret
+
   deploy:
-    needs: test
+    name: Despliegue en Render
+    needs: [ quality, secrets, sast, integration ]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
+    environment: production
+    timeout-minutes: 20
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Deploy to Render
-      run: echo "Deploy triggered - Configure Render webhook in repository settings"
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Disparar deploy en Render
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_URL no está configurado. Se omite el despliegue."
+            exit 0
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Smoke test posterior al despliegue
+        env:
+          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+        run: |
+          if [ -z "$RENDER_APP_URL" ]; then
+            echo "::warning::RENDER_APP_URL no está configurado. Se omite el smoke test."
+            exit 0
+          fi
+          sleep 60
+          curl -fsS "$RENDER_APP_URL/health"

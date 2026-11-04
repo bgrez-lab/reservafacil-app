@@ -14,7 +14,12 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="/">Inicio</a></li>
                     <li class="nav-item"><a class="nav-link" href="/reservas/mis-reservas">Mis Reservas</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/logout">Cerrar Sesión</a></li>
+                    <li class="nav-item">
+                        <form action="/logout" method="POST" class="d-inline">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <button type="submit" class="nav-link btn btn-link">Cerrar Sesión</button>
+                        </form>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -33,6 +38,7 @@
                         <% } %>
                         
                         <form action="/reservas/nueva" method="POST">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                             <div class="mb-3">
                                 <label for="servicio_id" class="form-label">Servicio</label>
                                 <select class="form-control" id="servicio_id" name="servicio_id" required>

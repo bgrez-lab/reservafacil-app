@@ -1,0 +1,17 @@
+title = "ReservaFácil - reglas de escaneo de secretos"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores ficticios usados en pruebas y en el workflow de CI"
+paths = [
+  "tests/.*",
+  ".github/workflows/.*"
+]
+regexes = [
+  "test-secret",
+  "postgres:postgres",
+  "admin123",
+  "demo123"
+]

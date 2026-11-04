@@ -53,8 +53,12 @@ router.post('/reservas/estado/:id', requireAdmin, async (req, res) => {
     const { estado } = req.body;
     const reservaId = req.params.id;
 
+    if (!/^\d+$/.test(reservaId)) {
+      return res.status(400).render('error', { message: 'Reserva no válida' });
+    }
+
     if (!['pendiente', 'confirmada', 'cancelada', 'completada'].includes(estado)) {
-      return res.redirect('/admin/reservas');
+      return res.status(400).render('error', { message: 'Estado no válido' });
     }
 
     await pool.query(

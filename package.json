@@ -8,8 +8,13 @@
     "dev": "nodemon src/app.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
-    "lint": "echo 'Linting not configured'",
-    "audit": "npm audit --audit-level=high"
+    "test:ci": "jest --coverage --ci",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "db:init": "node scripts/init-db.js",
+    "seed:admin": "node scripts/reset-admin.js",
+    "audit": "npm audit --audit-level=high",
+    "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
   "keywords": [
     "reservas",
@@ -19,11 +24,11 @@
   "author": "ReservaFácil",
   "license": "MIT",
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "connect-pg-simple": "^9.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "ejs": "^3.1.9",
+    "ejs": "^7.0.2",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "express-session": "^1.17.3",
@@ -31,11 +36,12 @@
     "pg": "^8.11.3"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "supertest": "^6.3.3"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

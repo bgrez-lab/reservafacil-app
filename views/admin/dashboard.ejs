@@ -15,7 +15,12 @@
                     <li class="nav-item"><a class="nav-link" href="/">Inicio</a></li>
                     <li class="nav-item"><a class="nav-link" href="/admin/reservas">Todas las Reservas</a></li>
                     <li class="nav-item"><a class="nav-link" href="/admin/usuarios">Usuarios</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/logout">Cerrar Sesión</a></li>
+                    <li class="nav-item">
+                        <form action="/logout" method="POST" class="d-inline">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <button type="submit" class="nav-link btn btn-link">Cerrar Sesión</button>
+                        </form>
+                    </li>
                 </ul>
             </div>
         </div>

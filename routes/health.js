@@ -7,7 +7,8 @@ router.get('/health', async (req, res) => {
     const result = await pool.query('SELECT NOW()');
     res.json({ status: 'ok', db: 'connected', time: result.rows[0].now });
   } catch (error) {
-    res.status(500).json({ status: 'error', db: 'disconnected', error: error.message });
+    console.error('Health check de base de datos falló:', error.message);
+    res.status(500).json({ status: 'error', db: 'disconnected' });
   }
 });
 

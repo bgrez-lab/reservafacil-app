@@ -29,24 +29,34 @@ CREATE TABLE IF NOT EXISTS reservas (
     hora TIME NOT NULL,
     estado VARCHAR(20) NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'confirmada', 'cancelada', 'completada')),
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(fecha, hora) -- Evitar doble reserva en mismo horario
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Un horario solo puede tener una reserva activa. Las canceladas liberan el cupo.
+ALTER TABLE reservas DROP CONSTRAINT IF EXISTS reservas_fecha_hora_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reservas_slot_unico
+    ON reservas(fecha, hora)
+    WHERE estado <> 'cancelada';
 
 -- Crear índices para mejorar rendimiento
 CREATE INDEX IF NOT EXISTS idx_reservas_usuario ON reservas(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_reservas_fecha ON reservas(fecha);
 CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
 
--- Insertar servicios de ejemplo
-INSERT INTO servicios (nombre, descripcion, duracion_minutos) VALUES
-('Consulta General', 'Atención médica general', 30),
-('Odontología', 'Consulta odontológica', 45),
-('Pediatría', 'Atención pediátrica', 30)
-ON CONFLICT DO NOTHING;
+-- Insertar servicios de ejemplo de forma idempotente
+INSERT INTO servicios (nombre, descripcion, duracion_minutos)
+SELECT v.nombre, v.descripcion, v.duracion_minutos
+FROM (VALUES
+    ('Consulta General', 'Atención médica general', 30),
+    ('Odontología', 'Consulta odontológica', 45),
+    ('Pediatría', 'Atención pediátrica', 30)
+) AS v(nombre, descripcion, duracion_minutos)
+WHERE NOT EXISTS (
+    SELECT 1 FROM servicios s WHERE s.nombre = v.nombre
+);
 
 -- Crear usuario administrador por defecto (contraseña: admin123)
--- La contraseña se debe cambiar en producción
+-- La contraseña se debe cambiar en producción con: npm run seed:admin
 INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES
-('Administrador', 'admin@reservafacil.com', '$2b$10$rQZ9vXKqGvLhF5wN3mT8uOeJpYcA2bR4sD6fG8hI0kL2nM4pQ6rS8tU0vW2xY4z', 'admin')
+('Administrador', 'admin@reservafacil.com', '$2b$12$gbndSSD.ASDJ7MGz0DdD9O44JR2Y9HUSPXceHtWXUI1aJV36o9HWu', 'admin')
 ON CONFLICT (email) DO NOTHING;
