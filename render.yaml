@@ -23,7 +23,7 @@ services:
       - key: DATABASE_SSL
         value: "true"
       - key: DATABASE_SSL_REJECT_UNAUTHORIZED
-        value: "true"
+        value: "false"
 
 databases:
   - name: reservafacil-db

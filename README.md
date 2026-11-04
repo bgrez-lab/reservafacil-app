@@ -213,7 +213,7 @@ Si no están configurados, el pipeline advierte y omite el despliegue sin fallar
 1. Crea un Blueprint a partir de `render.yaml` o un Web Service manual.
 2. Usa `npm ci` como build y `npm start` como start command.
 3. Configura `DATABASE_URL`, `SESSION_SECRET`, `BCRYPT_ROUNDS=12`,
-   `DATABASE_SSL=true` y `DATABASE_SSL_REJECT_UNAUTHORIZED=true`.
+   `DATABASE_SSL=true` y `DATABASE_SSL_REJECT_UNAUTHORIZED=false` (Render usa un certificado autofirmado en su PostgreSQL administrado).
 4. Ejecuta una vez `npm run db:init` contra la base de producción.
 5. Ejecuta `npm run seed:admin` con un `ADMIN_PASSWORD` propio.
 6. Configura `RENDER_DEPLOY_HOOK_URL` y `RENDER_APP_URL` en GitHub.

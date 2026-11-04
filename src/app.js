@@ -122,7 +122,10 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error(err.stack || err);
+  if (res.headersSent) {
+    return next(err);
+  }
   res.status(500).render('error', { message: 'Error interno del servidor' });
 });
 
