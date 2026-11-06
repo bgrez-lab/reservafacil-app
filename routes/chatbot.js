@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
+const chatLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
 const { requireAdmin } = require('../middleware/auth');
 const ChatbotQA = require('../models/ChatbotQA');
 const ChatConversation = require('../models/ChatConversation');
@@ -17,7 +19,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/ask', async (req, res) => {
+router.post('/ask', chatLimiter, async (req, res) => {
   try {
     const question = (req.body.pregunta || '').trim();
     if (!question) {
@@ -41,6 +43,41 @@ router.post('/ask', async (req, res) => {
     if (match) {
       respuesta = match.respuesta;
       categoria = match.categoria;
+    } else if (process.env.OPENAI_API_KEY && question.length <= 500) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: 'Eres el asistente virtual de ReservaFácil SpA, una plataforma de reservas de atención. Responde de forma breve, clara y en español. No inventes datos personales ni ejecutes acciones administrativas. Si no sabes la respuesta, sugiere contactar a un ejecutivo.' },
+              { role: 'user', content: question }
+            ],
+            max_tokens: 200,
+            temperature: 0.4
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if (aiRes.ok) {
+          const data = await aiRes.json();
+          respuesta = data?.choices?.[0]?.message?.content?.trim() || 'No tengo una respuesta exacta para eso. Puedo ayudarte con reservas, horarios, cancelaciones o contacto. Si prefieres, solicita hablar con un ejecutivo.';
+          categoria = 'generativa';
+        } else {
+          respuesta = 'No tengo una respuesta exacta para eso. Puedo ayudarte con reservas, horarios, cancelaciones o contacto. Si prefieres, solicita hablar con un ejecutivo.';
+          categoria = 'sin-respuesta';
+        }
+      } catch (aiError) {
+        console.error('Error en chatbot generativo:', aiError.message);
+        respuesta = 'No tengo una respuesta exacta para eso. Puedo ayudarte con reservas, horarios, cancelaciones o contacto. Si prefieres, solicita hablar con un ejecutivo.';
+        categoria = 'sin-respuesta';
+      }
     } else {
       respuesta = 'No tengo una respuesta exacta para eso. Puedo ayudarte con reservas, horarios, cancelaciones o contacto. Si prefieres, solicita hablar con un ejecutivo.';
       categoria = 'sin-respuesta';
