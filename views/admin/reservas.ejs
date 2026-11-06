@@ -56,7 +56,7 @@
                                     <td><%= reserva.usuario %></td>
                                     <td><%= reserva.email %></td>
                                     <td><%= reserva.servicio %></td>
-                                    <td><%= reserva.fecha.toISOString().split('T')[0] %></td>
+                                    <td><%= reserva.fecha %></td>
                                     <td><%= reserva.hora %></td>
                                     <td>
                                         <span class="badge bg-<%= reserva.estado === 'confirmada' ? 'success' : reserva.estado === 'pendiente' ? 'warning' : reserva.estado === 'cancelada' ? 'danger' : 'secondary' %>">

@@ -7,6 +7,21 @@ describe('Aplicación ReservaFácil SpA', () => {
     expect(response.statusCode).toBe(200);
   });
 
+  test('Formulario de login responde correctamente', async () => {
+    const response = await request(app).get('/login');
+    expect(response.statusCode).toBe(200);
+  });
+
+  test('Formulario de contacto responde correctamente', async () => {
+    const response = await request(app).get('/contacto');
+    expect(response.statusCode).toBe(200);
+  });
+
+  test('Chatbot responde correctamente', async () => {
+    const response = await request(app).get('/chatbot');
+    expect(response.statusCode).toBe(200);
+  });
+
   test('Ruta protegida redirige sin autenticación', async () => {
     const response = await request(app).get('/reservas/mis-reservas');
     expect(response.statusCode).toBe(302);

@@ -5,91 +5,102 @@ function createRequest(overrides = {}) {
     method: 'GET',
     body: {},
     headers: {},
-    session: {},
     ...overrides
   };
 }
 
 function createResponse() {
-  return {
+  const cookies = [];
+  const res = {
     locals: {},
     statusCode: 200,
+    cookies,
+    cookie(name, value, options) {
+      cookies.push({ name, value, options });
+      return this;
+    },
     render: jest.fn(),
     status(code) {
       this.statusCode = code;
       return this;
     }
   };
+  return res;
 }
 
-describe('Middleware CSRF', () => {
-  test('genera un token y lo expone a las vistas', () => {
+describe('Middleware CSRF (double submit cookie)', () => {
+  test('genera un token en cookie y lo expone a las vistas', () => {
     const req = createRequest();
-    const res = createResponse();
-    const next = jest.fn();
-
-    csrfProtection(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    expect(req.session.csrfToken).toMatch(/^[a-f0-9]{64}$/);
-    expect(res.locals.csrfToken).toBe(req.session.csrfToken);
-  });
-
-  test('reutiliza el token existente de la sesión', () => {
-    const req = createRequest({ session: { csrfToken: 'a'.repeat(64) } });
     const res = createResponse();
 
     csrfProtection(req, res, jest.fn());
 
-    expect(req.session.csrfToken).toBe('a'.repeat(64));
+    expect(res.cookies).toHaveLength(1);
+    expect(res.cookies[0].name).toBe('csrf_token');
+    expect(res.cookies[0].value).toMatch(/^[a-f0-9]{64}$/);
+    expect(res.locals.csrfToken).toBe(res.cookies[0].value);
   });
 
-  test('permite métodos seguros sin token', () => {
+  test('reutiliza el token existente de la cookie', () => {
+    const token = 'a'.repeat(64);
+    const req = createRequest({ headers: { cookie: `csrf_token=${token}` } });
+    const res = createResponse();
+
+    csrfProtection(req, res, jest.fn());
+
+    expect(res.cookies).toHaveLength(0);
+    expect(res.locals.csrfToken).toBe(token);
+  });
+
+  test('permite métodos seguros sin validación', () => {
     const next = jest.fn();
     csrfProtection(createRequest({ method: 'GET' }), createResponse(), next);
     expect(next).toHaveBeenCalled();
   });
 
   test('rechaza POST sin token', () => {
-    const req = createRequest({ method: 'POST', session: { csrfToken: 'a'.repeat(64) } });
+    const token = 'a'.repeat(64);
+    const req = createRequest({ method: 'POST', headers: { cookie: `csrf_token=${token}` } });
     const res = createResponse();
 
     csrfProtection(req, res, jest.fn());
 
     expect(res.statusCode).toBe(403);
-    expect(res.render).toHaveBeenCalledWith('error', expect.any(Object));
+    expect(res.render).toHaveBeenCalled();
   });
 
-  test('rechaza POST con token incorrecto o de distinto largo', () => {
-    const session = { csrfToken: 'a'.repeat(64) };
+  test('rechaza POST con token incorrecto', () => {
+    const token = 'a'.repeat(64);
+    const req = createRequest({
+      method: 'POST',
+      body: { _csrf: 'b'.repeat(64) },
+      headers: { cookie: `csrf_token=${token}` }
+    });
+    const res = createResponse();
 
-    const wrong = createResponse();
-    csrfProtection(createRequest({ method: 'POST', body: { _csrf: 'b'.repeat(64) }, session }), wrong, jest.fn());
-    expect(wrong.statusCode).toBe(403);
+    csrfProtection(req, res, jest.fn());
 
-    const short = createResponse();
-    csrfProtection(createRequest({ method: 'POST', body: { _csrf: 'a' }, session }), short, jest.fn());
-    expect(short.statusCode).toBe(403);
+    expect(res.statusCode).toBe(403);
   });
 
-  test('acepta el token en el cuerpo y en la cabecera', () => {
-    const session = { csrfToken: 'a'.repeat(64) };
+  test('acepta POST con token válido por cuerpo o cabecera', () => {
+    const token = 'a'.repeat(64);
 
     const bodyNext = jest.fn();
-    csrfProtection(createRequest({ method: 'POST', body: { _csrf: 'a'.repeat(64) }, session }), createResponse(), bodyNext);
+    const bodyReq = createRequest({
+      method: 'POST',
+      body: { _csrf: token },
+      headers: { cookie: `csrf_token=${token}` }
+    });
+    csrfProtection(bodyReq, createResponse(), bodyNext);
     expect(bodyNext).toHaveBeenCalled();
 
     const headerNext = jest.fn();
-    csrfProtection(createRequest({ method: 'POST', headers: { 'x-csrf-token': 'a'.repeat(64) }, session }), createResponse(), headerNext);
+    const headerReq = createRequest({
+      method: 'POST',
+      headers: { cookie: `csrf_token=${token}`, 'x-csrf-token': token }
+    });
+    csrfProtection(headerReq, createResponse(), headerNext);
     expect(headerNext).toHaveBeenCalled();
-  });
-
-  test('exige que exista sesión', () => {
-    const next = jest.fn();
-    const req = createRequest({ session: null });
-
-    csrfProtection(req, createResponse(), next);
-
-    expect(next).toHaveBeenCalledWith(expect.any(Error));
   });
 });

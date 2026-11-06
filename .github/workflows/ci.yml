@@ -39,7 +39,7 @@ jobs:
         run: npm run test:ci
         env:
           NODE_ENV: test
-          SESSION_SECRET: test-secret-no-usar-en-produccion
+          JWT_SECRET: test-secret-no-usar-en-produccion
 
       - name: Publicar reporte de cobertura
         if: always()
@@ -49,10 +49,10 @@ jobs:
           path: coverage/
           retention-days: 14
 
-      - name: Auditar dependencias de producción (falla con high/critical)
+      - name: Auditar dependencias de producción
         run: npm run audit:prod
 
-      - name: Auditar todas las dependencias (falla con high/critical)
+      - name: Auditar todas las dependencias
         run: npm run audit
 
   secrets:
@@ -101,25 +101,16 @@ jobs:
             --exclude tests
 
   integration:
-    name: Pruebas de integración con PostgreSQL
+    name: Pruebas de integración con MongoDB
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: reservafacil_test
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+      mongo:
+        image: mongo:7
         ports:
-          - 5432:5432
+          - 27017:27017
 
     steps:
       - name: Checkout del código
@@ -134,12 +125,14 @@ jobs:
       - name: Instalar dependencias reproducibles
         run: npm ci
 
-      - name: Inicializar esquema y datos semilla
-        run: npm run db:init
+      - name: Crear administrador de prueba
+        run: npm run seed:admin
         env:
           NODE_ENV: development
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reservafacil_test
-          SESSION_SECRET: integration-test-secret
+          MONGODB_URI: mongodb://localhost:27017/reservafacil_test
+          JWT_SECRET: integration-test-secret
+          ADMIN_EMAIL: admin@test.com
+          ADMIN_PASSWORD: Admin123!
 
       - name: Levantar la aplicación y verificar /health
         run: |
@@ -161,8 +154,8 @@ jobs:
         env:
           NODE_ENV: development
           PORT: 3000
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reservafacil_test
-          SESSION_SECRET: integration-test-secret
+          MONGODB_URI: mongodb://localhost:27017/reservafacil_test
+          JWT_SECRET: integration-test-secret
 
   deploy:
     name: Despliegue en Render

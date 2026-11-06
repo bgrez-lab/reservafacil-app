@@ -1,25 +1,21 @@
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
-const { Pool } = require('pg');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
-const shouldUseSsl = process.env.NODE_ENV === 'production'
-  || process.env.DATABASE_SSL === 'true';
-const rejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false';
+mongoose.set('bufferCommands', false);
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: shouldUseSsl ? { rejectUnauthorized } : false
-});
+const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
 
-pool.on('connect', () => {
-  console.log('Conectado a la base de datos PostgreSQL');
-});
+async function connectDatabase() {
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI es obligatorio');
+  }
+  await mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 10000
+  });
+  console.log('Conectado a MongoDB');
+}
 
-pool.on('error', (err) => {
-  console.error('Error inesperado en el cliente de PostgreSQL', err);
-  process.exit(-1);
-});
-
-module.exports = pool;
+module.exports = { mongoose, connectDatabase, MONGODB_URI };

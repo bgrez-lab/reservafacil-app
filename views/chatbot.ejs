@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="/">ReservaFácil SpA</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Inicio</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/contacto">Contacto</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container container-narrow">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0">Chatbot de Atención</h2>
+            </div>
+            <div class="card-body">
+                <div id="chat" class="mb-3" style="max-height: 320px; overflow-y: auto; background: var(--color-paper-white); border-radius: 16px; padding: 16px;">
+                    <div class="alert alert-info">Hola, soy el asistente de ReservaFácil. ¿En qué puedo ayudarte?</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <input type="text" id="pregunta" class="form-control" placeholder="Escribe tu consulta...">
+                    <button type="button" class="btn btn-primary" id="enviar">Enviar</button>
+                </div>
+                <div class="mt-4">
+                    <h4>Preguntas frecuentes</h4>
+                    <ul>
+                        <% qas.forEach(qa => { %>
+                            <li><strong><%= qa.pregunta %></strong> — <%= qa.respuesta %></li>
+                        <% }); %>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/chatbot.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

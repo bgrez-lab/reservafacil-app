@@ -66,7 +66,7 @@
                                 <% reservas.forEach(reserva => { %>
                                     <tr>
                                         <td><%= reserva.servicio %></td>
-                                        <td><%= reserva.fecha.toISOString().split('T')[0] %></td>
+                                        <td><%= reserva.fecha %></td>
                                         <td><%= reserva.hora %></td>
                                         <td><%= reserva.duracion_minutos %> min</td>
                                         <td>
